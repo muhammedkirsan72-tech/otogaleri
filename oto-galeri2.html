@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Oto Galeri 3D — Gerçekçi Sürüm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep:#0a0c0f; --bg-panel:#161a20; --bg-panel-2:#1d232b; --border:#2b323d;
+    --gold:#c9a13b; --gold-bright:#e9c568; --teal:#2e8b83; --text:#eae6da; --muted:#8b8f97;
+    --danger:#b3432c; --success:#4c8c4a;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:var(--bg-deep); font-family:'Inter',sans-serif; color:var(--text); }
+  #game-canvas { position:fixed; inset:0; display:block; }
+  .mono { font-family:'JetBrains Mono',monospace; }
+  .display { font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.03em; }
+
+  /* INTRO */
+  #intro-screen { position:fixed; inset:0; z-index:50; background:radial-gradient(ellipse at 50% 0%, #1c222b 0%, #0a0c0f 70%); display:flex; align-items:center; justify-content:center; padding:15px; }
+  .intro-card { width:min(520px, 92vw); background:var(--bg-panel); border:1px solid var(--border); border-radius:6px; padding:28px 24px; box-shadow:0 30px 80px rgba(0,0,0,.6); }
+  .intro-eyebrow { color:var(--gold); font-size:12px; letter-spacing:.2em; margin-bottom:6px; }
+  .intro-title { font-size:26px; font-weight:700; margin:0 0 4px; }
+  .intro-sub { color:var(--muted); font-size:13px; margin-bottom:24px; }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; letter-spacing:.05em; }
+  .field input[type=text] { width:100%; padding:11px 12px; background:var(--bg-panel-2); border:1px solid var(--border); color:var(--text); border-radius:4px; font-size:15px; font-family:'Inter',sans-serif; }
+  .field input[type=text]:focus { outline:none; border-color:var(--gold); }
+  .swatches { display:flex; gap:10px; flex-wrap:wrap; }
+  .swatch { width:36px; height:36px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:.15s; }
+  .swatch.active { border-color:var(--gold-bright); transform:scale(1.08); }
+  .btn { display:inline-block; padding:12px 20px; background:var(--gold); color:#1a1305; border:none; border-radius:4px; font-family:'Oswald',sans-serif; font-weight:600; letter-spacing:.05em; text-transform:uppercase; font-size:14px; cursor:pointer; transition:.15s; }
+  .btn:hover { background:var(--gold-bright); }
+  .btn.secondary { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn.secondary:hover { border-color:var(--gold); color:var(--gold-bright); }
+  .btn.full { width:100%; text-align:center; }
+  .btn-row { display:flex; gap:10px; margin-top:18px; }
+
+  /* HUD */
+  #hud { position:fixed; top:0; left:0; right:0; z-index:20; display:flex; justify-content:space-between; padding:14px 18px; pointer-events:none; flex-wrap:wrap; gap:8px; }
+  .hud-pill { background:rgba(20,23,28,.85); border:1px solid var(--border); border-radius:6px; padding:8px 16px; backdrop-filter:blur(6px); pointer-events:auto; }
+  #money-pill { font-family:'JetBrains Mono',monospace; font-weight:700; font-size:18px; color:var(--gold-bright); }
+  #shop-pill { font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:.06em; color:var(--muted); }
+  #shop-pill b { color:var(--text); }
+  #zone-indicator { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:20; background:rgba(20,23,28,.85); border:1px solid var(--border); border-radius:6px;padding:8px 18px; font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:.1em; color:var(--teal); pointer-events:none; }
+
+  #interact-prompt { position:fixed; bottom:160px; left:50%; transform:translateX(-50%); z-index:20; background:rgba(20,23,28,.92); border:1px solid var(--gold); border-radius:6px; padding:10px 18px; font-size:13px; display:none; }
+  #interact-prompt kbd { background:var(--gold); color:#1a1305; padding:2px 7px; border-radius:3px; font-weight:700; margin-right:8px; }
+
+  #control-hint { position:fixed; bottom:16px; left:16px; z-index:20; font-size:11px; color:var(--muted); background:rgba(20,23,28,.7); padding:8px 12px; border-radius:6px; line-height:1.6; display:none; }
+  @media (hover: hover) and (pointer: fine) { #control-hint { display:block; } }
+
+  #bottom-actions { position:fixed; bottom:16px; right:16px; z-index:20; display:flex; gap:8px; }
+  #bottom-actions .btn { padding:10px 14px; font-size:12px; }
+
+  #toast-wrap { position:fixed; top:70px; left:50%; transform:translateX(-50%); z-index:40; display:flex; flex-direction:column; gap:8px; align-items:center; width:90%; max-width:400px; }
+  .toast { background:rgba(20,23,28,.95); border-left:4px solid var(--gold); padding:10px 16px; border-radius:4px; font-size:13px; animation:fadein .2s ease; width:100%; }
+  .toast.success { border-color:var(--success); }
+  .toast.danger { border-color:var(--danger); }
+  @keyframes fadein { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+
+  /* MODALS */
+  .modal-backdrop { position:fixed; inset:0; background:rgba(6,7,9,.72); z-index:30; display:none; align-items:center; justify-content:center; padding:15px; }
+  .modal-backdrop.open { display:flex; }
+  .modal { background:var(--bg-panel); border:1px solid var(--border); border-radius:8px; width:min(640px, 94vw); max-height:86vh; overflow-y:auto; padding:24px 20px; box-shadow:0 30px 80px rgba(0,0,0,.6); }
+  .modal-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; }
+  .modal-title { font-size:20px; font-weight:700; margin:0; }
+  .modal-close { background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; line-height:1; padding: 0 5px; }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); gap:10px; }
+  .row:last-child { border-bottom:none; }
+  .car-card { background:var(--bg-panel-2); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:10px; }
+  .car-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .car-name { font-weight:600; font-size:15px; }
+  .car-meta { color:var(--muted); font-size:12px; margin-top:2px; }
+  .car-price { font-family:'JetBrains Mono',monospace; color:var(--gold-bright); font-weight:700; font-size:16px; white-space:nowrap; }
+  .tag { display:inline-block; background:var(--bg-panel); border:1px solid var(--border); border-radius:3px; padding:2px 7px; font-size:10px; color:var(--muted); margin-top:6px; letter-spacing:.05em; margin-right:5px; }
+  .offer-row { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .offer-row input { flex:1; min-width: 100px; padding:9px 10px; background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; font-family:'JetBrains Mono',monospace; }
+  .neg-log { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-top:12px; max-height:140px; overflow-y:auto; font-size:13px; }
+  .neg-log div { margin-bottom:6px; } .neg-log .them { color:var(--muted); } .neg-log .me { color:var(--gold-bright); }
+  .color-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; } .color-dot { width:30px; height:30px; border-radius:50%; cursor:pointer; border:2px solid transparent; } .color-dot.active { border-color:#fff; }
+  .empty-note { color:var(--muted); font-size:13px; text-align:center; padding:20px 0; }
+  select { background:var(--bg-deep); color:var(--text); border:1px solid var(--border); padding:8px; border-radius:4px; width:100%; }
+
+  #vignette { position:fixed; inset:0; z-index:10; pointer-events:none; background:radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 55%, rgba(4,5,7,0.45) 100%); }
+      
+  /* MOBILE CONTROLS */
+  #mobile-controls { display: none; position: fixed; inset: 0; z-index: 15; pointer-events: none; }
+  @media (hover: none) and (pointer: coarse) { #mobile-controls { display: block; } }
+  .touch-btn { position: absolute; pointer-events: auto; background: rgba(20,23,28,.7); border: 1px solid var(--border); color: var(--gold-bright); border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 20px; user-select: none; -webkit-user-select: none; backdrop-filter: blur(4px); }
+  .touch-btn:active { background: rgba(201,161,59,.5); transform: scale(0.95); }
+  #btn-up { left: 80px; bottom: 140px; } #btn-down { left: 80px; bottom: 60px; } #btn-left { left: 20px; bottom: 100px; } #btn-right { left: 140px; bottom: 100px; }
+  #btn-interact { right: 20px; bottom: 100px; width: 70px; height: 70px; font-size: 14px; } #btn-car { right: 100px; bottom: 100px; width: 70px; height: 70px; font-size: 14px; border-color: var(--gold); color: var(--gold); }
+</style>
+</head>
+<body>
+
+<div id="intro-screen">
+  <div class="intro-card">
+    <div class="intro-eyebrow">OTO GALERİ 3D</div>
+    <h1 class="intro-title display">Dükkanını Kur</h1>
+    <div class="intro-sub">200.000$ sermaye ile başlıyorsun. Karakterini ve galerini yarat.</div>
+    <div class="field"><label>Karakter Adın</label><input type="text" id="in-player-name" maxlength="18" placeholder="örn. Kaan Yılmaz"></div>
+    <div class="field"><label>Galeri / Dükkan Adın</label><input type="text" id="in-shop-name" maxlength="20" placeholder="örn. Yılmaz Otomotiv"></div>
+    <div class="field"><label>Karakter Rengi</label><div class="swatches" id="avatar-swatches"></div></div>
+    <div class="btn-row"><button class="btn full" id="btn-start-game">Galeriyi Aç</button></div>
+    <div id="continue-row" style="display:none;margin-top:10px;"><button class="btn secondary full" id="btn-continue-game">Kayıtlı Oyuna Devam Et</button></div>
+  </div>
+</div>
+
+<canvas id="game-canvas"></canvas>
+<div id="vignette"></div>
+
+<div id="hud">
+  <div class="hud-pill" id="shop-pill">Galeri: <b id="hud-shop-name">-</b> · Seviye <b id="hud-shop-level">1</b></div>
+  <div class="hud-pill mono" id="money-pill">$0</div>
+</div>
+<div id="zone-indicator">DÜKKANINIZ</div>
+<div id="interact-prompt"><kbd>E</kbd><span id="interact-text">Etkileşime gir</span></div>
+<div id="control-hint">WASD — Hareket &nbsp;|&nbsp; E — Etkileşim &nbsp;|&nbsp; F — Arabaya Bin/İn &nbsp;|&nbsp; Shift — Koş</div>
+<div id="bottom-actions"><button class="btn secondary" id="btn-shop-panel">Galeri Yönetimi</button></div>
+<div id="toast-wrap"></div>
+
+<div id="mobile-controls">
+  <div class="touch-btn" id="btn-up">▲</div><div class="touch-btn" id="btn-down">▼</div>
+  <div class="touch-btn" id="btn-left">◄</div><div class="touch-btn" id="btn-right">►</div>
+  <div class="touch-btn" id="btn-interact">E</div><div class="touch-btn" id="btn-car">F</div>
+</div>
+
+<div class="modal-backdrop" id="modal-negotiate"><div class="modal"><div class="modal-header"><h3 class="modal-title" id="neg-title">Pazarlık</h3><button class="modal-close" data-close="modal-negotiate">×</button></div><div id="neg-body"></div></div></div>
+<div class="modal-backdrop" id="modal-shop"><div class="modal"><div class="modal-header"><h3 class="modal-title">Galeri Yönetimi</h3><button class="modal-close" data-close="modal-shop">×</button></div><div id="shop-body"></div></div></div>
+<div class="modal-backdrop" id="modal-auction"><div class="modal"><div class="modal-header"><h3 class="modal-title">Açık Artırma</h3><button class="modal-close" data-close="modal-auction">×</button></div><div id="auction-body"></div></div></div>
+<div class="modal-backdrop" id="modal-customer"><div class="modal"><div class="modal-header"><h3 class="modal-title">Müşteri</h3><button class="modal-close" data-close="modal-customer">×</button></div><div id="customer-body"></div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+(function() {
+  "use strict";
+
+  // CONSTANTS
+  const AVATAR_COLORS = ["#c9432c","#2e6f8b","#3a8b4c","#c9a13b","#7a4fc9","#c94f9c","#4f4f4f","#e8e2d0"];
+  // Kategori başına HEDEF gerçek uzunluk (m) — .glb modeller yüklendiğinde bounding-box'a göre
+  // otomatik olarak bu uzunluğa ölçeklenir. wheelR/hoodRatio artık sadece PROCEDURAL (yedek) araçlar içindir.
+  const CAR_TYPES = {
+    hatchback:{length:4.1, width:1.8, height:1.45, hoodRatio:0.35, wheelR:0.32},
+    compact:  {length:4.3, width:1.8, height:1.5,  hoodRatio:0.32, wheelR:0.32},
+    sedan:    {length:4.6, width:1.8, height:1.45, hoodRatio:0.42, wheelR:0.33},
+    suv:      {length:4.4, width:1.85,height:1.65, hoodRatio:0.38, wheelR:0.36},
+    sports:   {length:4.3, width:1.85,height:1.25, hoodRatio:0.45, wheelR:0.33},
+  };
+  // Her kayıt bir .glb dosyasına karşılık gelir. Dosyalar oyunla aynı klasördeki "models/" içinde olmalı.
+  // colorable:true ise, paintMaterials içindeki materyal adları oyuncunun seçtiği renkle boyanır
+  // (bu isimler modelin içindeki gerçek malzeme adlarıdır — güvenle tespit edilebilenler işaretlendi;
+  // emin olunamayanlarda model kendi orijinal rengiyle kalır).
+  // rotationY: model yanlış yöne bakıyorsa 90/180/270 (derece) olarak düzeltilebilir.
+  const CAR_CATALOG = [
+    {id:"dacia_sandero_2000", brand:"Dacia",   model:"Sandero",         year:2000, type:"hatchback", min:2500,  max:4000,  file:"dacia_sandero_2000.glb",       colorable:false, paintMaterials:[], rotationY:0},
+    {id:"renault_symbol_2006",brand:"Renault", model:"Symbol / Thalia", year:2006, type:"sedan",     min:4000,  max:6500,  file:"renault_symbol_2006.glb",      colorable:true,  paintMaterials:["Carro_Pintura"], rotationY:0},
+    {id:"renault_koleos_2008",brand:"Renault", model:"Koleos",          year:2008, type:"suv",       min:7000,  max:11000, file:"renault_koleos_2008.glb",      colorable:false, paintMaterials:[], rotationY:0},
+    {id:"dacia_logan_2009",   brand:"Dacia",   model:"Logan",           year:2009, type:"sedan",     min:3500,  max:5500,  file:"dacia_logan_2009.glb",         colorable:false, paintMaterials:[], rotationY:0},
+    {id:"renault_laguna_2009",brand:"Renault", model:"Laguna III",      year:2009, type:"sedan",     min:6000,  max:9500,  file:"renault_laguna_2009.glb",      colorable:true,  paintMaterials:["exterieur"], rotationY:0},
+    {id:"renault_zoe_2017",   brand:"Renault", model:"Zoe e-Sport Concept", year:2017, type:"sports", min:25000, max:45000, file:"renault_zoe_2017.glb",       colorable:true,  paintMaterials:["carpaint"], rotationY:0},
+    {id:"renault_clio_2020",  brand:"Renault", model:"Clio",            year:2020, type:"hatchback", min:9000,  max:13000, file:"renault_clio_2020.glb",        colorable:false, paintMaterials:[], rotationY:0},
+    {id:"renault_austral_2022",brand:"Renault",model:"Austral",         year:2022, type:"suv",       min:22000, max:32000, file:"renault_austral_2022.glb",     colorable:false, paintMaterials:[], rotationY:0},
+    {id:"renault_clio_2023",  brand:"Renault", model:"Clio",            year:2023, type:"hatchback", min:11000, max:15000, file:"renault_clio_2023.glb",        colorable:false, paintMaterials:[], rotationY:0},
+    {id:"renault_megane_etech_2024",brand:"Renault",model:"Megane E-Tech",year:2024,type:"compact",  min:24000, max:34000, file:"renault_megane_etech_2024.glb",colorable:true,  paintMaterials:["visionarq_mx_car_body_carpaint"], rotationY:0},
+    {id:"renault_captur_2025",brand:"Renault", model:"Captur",          year:2025, type:"suv",       min:18000, max:26000, file:"renault_captur_2025.glb",      colorable:false, paintMaterials:[], rotationY:0},
+    {id:"renault_rafale_2025",brand:"Renault", model:"Rafale",          year:2025, type:"suv",       min:32000, max:46000, file:"renault_rafale_2025.glb",      colorable:false, paintMaterials:[], rotationY:0},
+    {id:"renault_clio_2026",  brand:"Renault", model:"Clio",            year:2026, type:"hatchback", min:14000, max:19000, file:"renault_clio_2026.glb",        colorable:false, paintMaterials:[], rotationY:0},
+    {id:"dacia_duster_2024",  brand:"Dacia",   model:"Duster",          year:2024, type:"suv",       min:13000, max:18000, file:"dacia_duster_2024.glb",        colorable:false, paintMaterials:[], rotationY:0},
+    {id:"dacia_duster_2017",  brand:"Dacia",   model:"Duster",          year:2017, type:"suv",       min:8000,  max:12000, file:"dacia_duster_2017.glb",        colorable:true,  paintMaterials:["UV_body"], rotationY:0},
+    {id:"dacia_logan_2021",   brand:"Dacia",   model:"Logan",           year:2021, type:"sedan",     min:6000,  max:9000,  file:"dacia_logan_2021.glb",         colorable:true,  paintMaterials:["EXTERIOR"], rotationY:0},
+    {id:"fiat_egea_2017",     brand:"Fiat",    model:"Egea / Tipo",     year:2017, type:"sedan",     min:6500,  max:10000, file:"fiat_egea_2017.glb",           colorable:true,  paintMaterials:["pab_v55_paint"], rotationY:0},
+    {id:"renault_9_broadway", brand:"Renault", model:"9 Broadway",      year:1986, type:"sedan",     min:3000,  max:5500,  file:"renault_9_broadway.glb",       colorable:true,  paintMaterials:["Paint"], rotationY:0},
+    {id:"renault_12_toros",   brand:"Renault", model:"12 Toros",        year:1981, type:"sedan",     min:2500,  max:4500,  file:"renault_12_toros.glb",         colorable:true,  paintMaterials:["carrosserie"], rotationY:0},
+    {id:"renault_boreal_2025",brand:"Renault", model:"Boreal",          year:2025, type:"suv",       min:28000, max:40000, file:"renault_boreal_2025.glb",      colorable:false, paintMaterials:[], rotationY:0},
+  ];
+  const BODY_COLORS = ["#c0392b","#1f3a5f","#2c2c2c","#e8e2d0","#7f8c8d","#145a32","#8e44ad","#d4ac0d","#95a5a6","#0e0e0e"];
+  const ZONES = {
+    shop:    {x:0,   z:0,   label:"DÜKKANINIZ",       color:0x8b6b1f, radius:26},
+    city:    {x:95,  z:0,   label:"ŞEHİR MERKEZİ",     color:0x555b63, radius:34},
+    rivalA:  {x:-95, z:0,   label:"KARDEŞLER OTOMOTİV (RAKİP)", color:0x5f3535, radius:26},
+    rivalB:  {x:0,   z:95,  label:"MERKEZ GALERİ (RAKİP)",      color:0x35505f, radius:26},
+    auction: {x:0,   z:-95, label:"AÇIK ARTIRMA SALONU", color:0x4b3f5f, radius:26},
+  };
+  const WORLD_BOUND = 145;
+
+  // STATE
+  let state = null;
+  function defaultState(playerName, shopName, avatarColor) {
+    return { playerName, shopName, avatarColor, money: 200000, shopLevel: 1, shopSlots: 4, inventory: [], stats:{ sold:0, bought:0 } };
+  }
+  let uidCounter = 1;
+  function nextUid() { return "car_" + (uidCounter++) + "_" + Date.now().toString(36); }
+  function catalogOf(id) { return CAR_CATALOG.find(c=>c.id===id); }
+  function fmtMoney(n) { return "$" + Math.round(n).toLocaleString("tr-TR"); }
+  function rand(min,max) { return min + Math.random()*(max-min); }
+  function randInt(min,max) { return Math.floor(rand(min,max+1)); }
+  function pick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+  function carDisplayName(catalogId) { const c = catalogOf(catalogId); return c.brand + " " + c.model; }
+  function conditionAdjustedPrice(catalogId, condition) { const c = catalogOf(catalogId); const base = rand(c.min, c.max); return Math.round(base * (0.65 + 0.35*(condition/100))); }
+
+  // PERSISTENCE
+  function saveGame() { if(!state) return; try { localStorage.setItem("career-save", JSON.stringify(state)); } catch(e) { console.warn("Save failed", e); } }
+  function loadGame() { try { const res = localStorage.getItem("career-save"); if(res) return JSON.parse(res); } catch(e) {} return null; }
+
+  // THREE.JS SETUP
+  const canvas = document.getElementById("game-canvas");
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+
+  const SKY_TOP = 0x6f9cd6, SKY_HORIZON = 0xd7e6ec;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(SKY_HORIZON);
+  scene.fog = new THREE.Fog(SKY_HORIZON, 75, 260);
+
+  (function buildSky() {
+    const skyGeo = new THREE.SphereGeometry(400, 24, 16);
+    const skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      uniforms: { topColor:{value:new THREE.Color(SKY_TOP)}, bottomColor:{value:new THREE.Color(SKY_HORIZON)}, offset:{value:18}, exponent:{value:0.65} },
+      vertexShader: `varying vec3 vWorldPosition; void main(){ vec4 wp = modelMatrix*vec4(position,1.0); vWorldPosition = wp.xyz; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+      fragmentShader: `uniform vec3 topColor; uniform vec3 bottomColor; uniform float offset; uniform float exponent; varying vec3 vWorldPosition;
+        void main(){ float h = normalize(vWorldPosition+vec3(0.0,offset,0.0)).y; gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h,0.0),exponent),0.0)),1.0); }`
+    });
+    scene.add(new THREE.Mesh(skyGeo, skyMat));
+  })();
+
+  const camera = new THREE.PerspectiveCamera(56, window.innerWidth/window.innerHeight, 0.1, 600);
+  camera.position.set(0, 8, 14);
+  function resize() { renderer.setSize(window.innerWidth, window.innerHeight); camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); }
+  window.addEventListener("resize", resize);
+  resize();
+
+  // LIGHTS
+  const hemi = new THREE.HemisphereLight(0xdfe9f5, 0x3a3428, 0.9);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff2d6, 1.35);
+  sun.position.set(60,90,40);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.camera.left=-160; sun.shadow.camera.right=160; sun.shadow.camera.top=160; sun.shadow.camera.bottom=-160; sun.shadow.camera.far=300; sun.shadow.bias=-0.0003;
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x9fc0e8, 0.35);
+  fill.position.set(-50,40,-60);
+  scene.add(fill);
+
+  // SHADOW BLOB
+  const blobTex = (function(){
+    const c = document.createElement("canvas"); c.width=128; c.height=128;
+    const ctx = c.getContext("2d");
+    const g = ctx.createRadialGradient(64,64,0,64,64,64);
+    g.addColorStop(0,"rgba(0,0,0,0.45)");
+    g.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=g; ctx.fillRect(0,0,128,128);
+    return new THREE.CanvasTexture(c);
+  })();
+  function addContactShadow(parent, radius, y) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(radius*2,radius*2), new THREE.MeshBasicMaterial({map:blobTex, transparent:true, depthWrite:false}));
+    m.rotation.x=-Math.PI/2;
+    m.position.y = y!==undefined?y:0.03;
+    parent.add(m);
+    return m;
+  }
+
+  // GROUND
+  function buildAsphaltTexture() {
+    const c = document.createElement("canvas"); c.width=512; c.height=512;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle="#5a5e60"; ctx.fillRect(0,0,512,512);
+    for(let i=0;i<2600;i++){
+      const x=Math.random()*512, y=Math.random()*512, r=Math.random()*1.4+0.3;
+      const shade = Math.random()<0.5? "rgba(0,0,0,0.10)":"rgba(255,255,255,0.06)";
+      ctx.fillStyle=shade;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(40,40);
+    return tex;
+  }
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(400,400), new THREE.MeshStandardMaterial({map:buildAsphaltTexture(), roughness:0.95, metalness:0.02}));
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // ROADS
+  function buildRoadTexture() {
+    const c = document.createElement("canvas"); c.width=64; c.height=256;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle="#3a3d40"; ctx.fillRect(0,0,64,256);
+    ctx.fillStyle="#e9c568";
+    for(let y=0;y<256;y+=48){ ctx.fillRect(28,y,8,26); }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1,18);
+    return tex;
+  }
+  const roadTex = buildRoadTexture();
+  function buildRoad(x1,z1,x2,z2) {
+    const dx=x2-x1, dz=z2-z1;
+    const len = Math.hypot(dx,dz);
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(7,len), new THREE.MeshStandardMaterial({map:roadTex, roughness:0.9}));
+    road.rotation.x=-Math.PI/2;
+    road.rotation.z = -Math.atan2(dz,dx)+Math.PI/2;
+    road.position.set((x1+x2)/2, 0.015, (z1+z2)/2);
+    road.receiveShadow=true;
+    scene.add(road);
+  }
+  buildRoad(0,0, ZONES.city.x,ZONES.city.z); buildRoad(0,0, ZONES.rivalA.x,ZONES.rivalA.z); buildRoad(0,0, ZONES.rivalB.x,ZONES.rivalB.z); buildRoad(0,0, ZONES.auction.x,ZONES.auction.z);
+
+  // CITY SKYLINE
+  function buildWindowTexture(baseColor, windowColor) {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = baseColor; ctx.fillRect(0,0,64,128);
+    for(let y=5; y<128; y+=15) {
+      for(let x=5; x<64; x+=15) {
+        ctx.fillStyle = Math.random() > 0.3 ? windowColor : "#333333";
+        ctx.fillRect(x, y, 10, 10);
+      }
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+  const citySkyline = new THREE.Group(); scene.add(citySkyline);
+  const skylineTex = buildWindowTexture("#3a3f45", "#8fc4e0"); skylineTex.repeat.set(2, 4);
+  for(let i=0; i<80; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 180 + Math.random() * 80;
+    const h = 20 + Math.random() * 60;
+    const w = 15 + Math.random() * 20;
+    const d = 15 + Math.random() * 20;
+    const building = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({map: skylineTex, roughness: 0.8}));
+    building.position.set(Math.cos(angle) * dist, h/2, Math.sin(angle) * dist);
+    citySkyline.add(building);
+  }
+
+  // PROPS
+  function createTree() {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.22,1.6,8), new THREE.MeshStandardMaterial({color:0x5b4330, roughness:1}));
+    trunk.position.y=0.8; trunk.castShadow=true; g.add(trunk);
+    const leafMat = new THREE.MeshStandardMaterial({color:0x3f7a3f, roughness:0.9});
+    for(let i=0;i<3;i++){
+      const s = 1.15 - i*0.22;
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(s,1.3,8), leafMat);
+      leaf.position.y = 1.6 + i*0.85;
+      leaf.castShadow=true; g.add(leaf);
+    }
+    addContactShadow(g, 1.1, 0.02);
+    return g;
+  }
+  const propsGroup = new THREE.Group(); scene.add(propsGroup);
+  for(let i=0;i<70;i++){
+    const angle = Math.random()*Math.PI*2;
+    const rad = rand(45,WORLD_BOUND-4);
+    const x = Math.cos(angle)*rad, z = Math.sin(angle)*rad;
+    let tooClose = false;
+    Object.values(ZONES).forEach(zn=>{ if(Math.hypot(x-zn.x,z-zn.z) < zn.radius+8) tooClose=true; });
+    if(tooClose) continue;
+    const tree = createTree();
+    tree.position.set(x,0,z);
+    tree.rotation.y = Math.random()*Math.PI*2;
+    const sc = rand(0.8,1.3);
+    tree.scale.set(sc,sc,sc);
+    propsGroup.add(tree);
+  }
+
+  // SIGN HELPER
+  function roundRect(ctx,x,y,w,h,r) {
+    ctx.beginPath(); ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  }
+  function createSignSprite(lines, opts) {
+    opts = opts||{};
+    const w = opts.w||512, h = opts.h||160;
+    const cnv = document.createElement("canvas"); cnv.width=w; cnv.height=h;
+    const ctx = cnv.getContext("2d");
+    ctx.fillStyle = opts.bg||"rgba(10,12,15,0.88)";
+    roundRect(ctx,0,0,w,h,opts.radius===0?0:24); ctx.fill();
+    if(opts.border){ ctx.strokeStyle=opts.border; ctx.lineWidth=6; roundRect(ctx,3,3,w-6,h-6,20); ctx.stroke(); }
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    const lineCount = lines.length;
+    lines.forEach((ln,i)=>{
+      ctx.fillStyle = ln.color||"#eae6da";
+      ctx.font = (ln.weight||"700")+" "+(ln.size||44)+"px Oswald, sans-serif";
+      const y = h/2 + (i - (lineCount-1)/2) * (ln.size||44) * 1.15;
+      ctx.fillText(ln.text, w/2, y);
+    });
+    const tex = new THREE.CanvasTexture(cnv);
+    const mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:opts.depthTest!==false});
+    const sprite = new THREE.Sprite(mat);
+    const scale = opts.scale||6;
+    sprite.scale.set(scale*(w/h), scale, 1);
+    return sprite;
+  }
+
+  // ZONE FLOORS
+  const zoneGroup = new THREE.Group(); scene.add(zoneGroup);
+  Object.entries(ZONES).forEach(([key,z])=>{
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(z.radius,48), new THREE.MeshStandardMaterial({color:z.color, roughness:0.95}));
+    disc.rotation.x=-Math.PI/2;
+    disc.position.set(z.x, 0.02, z.z);
+    disc.receiveShadow=true;
+    zoneGroup.add(disc);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(z.radius-0.3,z.radius,48), new THREE.MeshBasicMaterial({color:0xe9c568, transparent:true, opacity:0.35, side:THREE.DoubleSide}));
+    ring.rotation.x=-Math.PI/2;
+    ring.position.set(z.x,0.03,z.z);
+    zoneGroup.add(ring);
+    if(key!=="shop"){
+      const label = createSignSprite([{text:z.label,size:40}], {scale:6, bg:"rgba(10,12,15,0.75)"});
+      label.position.set(z.x, 9, z.z - z.radius*0.55);
+      zoneGroup.add(label);
+    }
+  });
+
+  // ENTERABLE BUILDING
+  function createShowroom(w, h, d) {
+    const g = new THREE.Group();
+    const wallMat = new THREE.MeshStandardMaterial({color:0x3b4048, roughness:0.8});
+    const glassMat = new THREE.MeshPhysicalMaterial({color:0xaacde6, roughness:0.1, metalness:0.2, transparent:true, opacity:0.35});
+    
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(w-0.4, d-0.4), new THREE.MeshStandardMaterial({color:0x555555, roughness:0.7}));
+    floor.rotation.x = -Math.PI/2;
+    floor.position.set(0, 0.05, 0);
+    floor.receiveShadow = true;
+    g.add(floor);
+    
+    const back = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.2), wallMat);
+    back.position.set(0, h/2, -d/2);
+    back.castShadow = true; g.add(back);
+    
+    const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.2, h, d), glassMat);
+    sideL.position.set(-w/2, h/2, 0); g.add(sideL);
+    
+    const sideR = new THREE.Mesh(new THREE.BoxGeometry(0.2, h, d), glassMat);
+    sideR.position.set(w/2, h/2, 0); g.add(sideR);
+    
+    const doorWidth = 4;
+    const frontW = (w - doorWidth) / 2;
+    const frontL = new THREE.Mesh(new THREE.BoxGeometry(frontW, h, 0.2), glassMat);
+    frontL.position.set(-(doorWidth/2 + frontW/2), h/2, d/2); g.add(frontL);
+    
+    const frontR = new THREE.Mesh(new THREE.BoxGeometry(frontW, h, 0.2), glassMat);
+    frontR.position.set(doorWidth/2 + frontW/2, h/2, d/2); g.add(frontR);
+    
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(w, 0.4, d+0.2), new THREE.MeshStandardMaterial({color:0x222222}));
+    roof.position.set(0, h, 0);
+    roof.castShadow = true; g.add(roof);
+    return g;
+  }
+  
+  function createWindowBuilding(w, h, d, baseColor, windowColor) {
+    const g = new THREE.Group();
+    const tex = buildWindowTexture(baseColor, windowColor);
+    tex.repeat.set(Math.round(w/5), Math.round(h/5));
+    const box = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial({map: tex, roughness:0.8}));
+    box.position.y = h/2;
+    box.castShadow=true; box.receiveShadow=true;
+    g.add(box);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(w+0.4,0.4,d+0.4), new THREE.MeshStandardMaterial({color:0x232830}));
+    roof.position.y = h+0.2;
+    g.add(roof);
+    return g;
+  }
+
+  let shopSignSprite = null;
+  const shopBuilding = createShowroom(22, 8, 16);
+  shopBuilding.position.set(0,0,-14);
+  scene.add(shopBuilding);
+
+  const rivalABuilding = createWindowBuilding(16,6,10, "#4a3636", "#e8c0c0");
+  rivalABuilding.position.set(-95,0,-14);
+  scene.add(rivalABuilding);
+  const rivalASign = createSignSprite([{text:"KARDEŞLER",size:34,color:"#e8c0c0"},{text:"OTOMOTİV",size:28,color:"#c9a13b"}],{scale:5});
+  rivalASign.position.set(0,7.5,-5.2);
+  rivalABuilding.add(rivalASign);
+
+  const rivalBBuilding = createWindowBuilding(16,6,10, "#36414a", "#c8e0e8");
+  rivalBBuilding.position.set(0,0,79);
+  scene.add(rivalBBuilding);
+  const rivalBSign = createSignSprite([{text:"MERKEZ GALERİ",size:32,color:"#c8e0e8"}],{scale:5});
+  rivalBSign.position.set(0,7.5,-5.2);
+  rivalBBuilding.add(rivalBSign);
+
+  const auctionBuilding = createWindowBuilding(20,8,14, "#3a2f4a", "#e0c8f0");
+  auctionBuilding.position.set(0,0,-111);
+  scene.add(auctionBuilding);
+  const auctionSign = createSignSprite([{text:"AÇIK ARTIRMA",size:32,color:"#e0c8f0"},{text:"SALONU",size:24,color:"#c9a13b"}],{scale:5.5});
+  auctionSign.position.set(0,8.5,-7.5);
+  auctionBuilding.add(auctionSign);
+
+  // DETAILED PROCEDURAL CAR MESH (yedek — .glb yüklenemezse veya kataloğa file tanımlanmamışsa kullanılır)
+  function createProceduralCarMesh(typeKey, colorHex) {
+    const t = CAR_TYPES[typeKey] || CAR_TYPES.sedan;
+    const group = new THREE.Group();
+    const bodyColor = new THREE.Color(colorHex);
+    const bodyMat = new THREE.MeshPhysicalMaterial({color:bodyColor, roughness:0.25, metalness:0.75, clearcoat:1, clearcoatRoughness:0.1});
+    const glassMat = new THREE.MeshPhysicalMaterial({color:0x111820, roughness:0.08, metalness:0.4, clearcoat:1, transparent:true, opacity:0.85});
+    const darkMat = new THREE.MeshStandardMaterial({color:0x111111, roughness:0.7, metalness:0.1});
+    const chromeMat = new THREE.MeshStandardMaterial({color:0xcfd4da, roughness:0.15, metalness:0.95});
+    const headlightMat = new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xfff8e0, emissiveIntensity:0.8, roughness:0.2, metalness:0.5});
+    const taillightMat = new THREE.MeshStandardMaterial({color:0xff1111, emissive:0xaa0000, emissiveIntensity:0.7, roughness:0.2, metalness:0.5});
+
+    const wheelR = t.wheelR;
+    const bodyY = wheelR + 0.25;
+
+    const lowerBodyGeo = new THREE.BoxGeometry(t.width, 0.7, t.length);
+    const lower = new THREE.Mesh(lowerBodyGeo, bodyMat);
+    lower.position.y = bodyY;
+    lower.castShadow = true; lower.receiveShadow = true;
+    group.add(lower);
+
+    const cabinLen = t.length * 0.5;
+    const cabinH = t.height * 0.42;
+    const cabinGeo = new THREE.BoxGeometry(t.width*0.86, cabinH, cabinLen);
+    const cabin = new THREE.Mesh(cabinGeo, bodyMat);
+    const cabinZOffset = -t.length*0.05;
+    cabin.position.set(0, bodyY + 0.35 + cabinH/2, cabinZOffset);
+    cabin.castShadow = true;
+    group.add(cabin);
+
+    const roofGeo = new THREE.BoxGeometry(t.width*0.82, 0.1, cabinLen*0.88);
+    const roof = new THREE.Mesh(roofGeo, bodyMat);
+    roof.position.set(0, bodyY + 0.35 + cabinH + 0.05, cabinZOffset);
+    group.add(roof);
+
+    const windshieldGeo = new THREE.BoxGeometry(t.width*0.78, cabinH*0.8, cabinLen*0.9);
+    const glass = new THREE.Mesh(windshieldGeo, glassMat);
+    glass.position.copy(cabin.position);
+    glass.position.y += 0.02;
+    group.add(glass);
+
+    [-1, 1].forEach(sx => {
+      const hl = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 12), headlightMat);
+      hl.scale.set(1, 0.5, 0.5);
+      hl.position.set(sx * t.width * 0.35, bodyY + 0.2, t.length/2 - 0.05);
+      group.add(hl);
+    });
+
+    [-1, 1].forEach(sx => {
+      const tl = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.05), taillightMat);
+      tl.position.set(sx * t.width * 0.35, bodyY + 0.25, -t.length/2 + 0.03);
+      group.add(tl);
+    });
+
+    const grille = new THREE.Mesh(new THREE.BoxGeometry(t.width*0.4, 0.2, 0.06), darkMat);
+    grille.position.set(0, bodyY + 0.05, t.length/2 - 0.03);
+    group.add(grille);
+
+    const bumperF = new THREE.Mesh(new THREE.BoxGeometry(t.width*0.98, 0.25, 0.25), chromeMat);
+    bumperF.position.set(0, bodyY - 0.1, t.length/2 - 0.1);
+    group.add(bumperF);
+    const bumperB = bumperF.clone();
+    bumperB.position.z = -t.length/2 + 0.1;
+    group.add(bumperB);
+
+    [-1, 1].forEach(sx => {
+      const mirrorArm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.15, 4), darkMat);
+      mirrorArm.rotation.z = Math.PI/2;
+      mirrorArm.position.set(sx * t.width * 0.45, bodyY + 0.35 + cabinH * 0.6, 0.1);
+      group.add(mirrorArm);
+      const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.05), bodyMat);
+      mirror.position.set(sx * t.width * 0.55, bodyY + 0.35 + cabinH * 0.6, 0.1);
+      group.add(mirror);
+    });
+
+    const wheelGeo = new THREE.CylinderGeometry(wheelR, wheelR, t.width*0.24, 24);
+    const wheelMat = new THREE.MeshStandardMaterial({color:0x1a1a1a, roughness:0.9});
+    const rimMat = new THREE.MeshStandardMaterial({color:0xaaaaaa, roughness:0.2, metalness:0.9});
+    const brakeMat = new THREE.MeshStandardMaterial({color:0xff3300, roughness:0.6, metalness:0.8});
+
+    const wheelPositions = [
+      [t.width/2-0.02, wheelR, t.length/2-wheelR*1.3],
+      [-t.width/2+0.02, wheelR, t.length/2-wheelR*1.3],
+      [t.width/2-0.02, wheelR, -t.length/2+wheelR*1.3],
+      [-t.width/2+0.02, wheelR, -t.length/2+wheelR*1.3],
+    ];
+    const wheels = [];
+    wheelPositions.forEach(p => {
+      const w = new THREE.Mesh(wheelGeo, wheelMat);
+      w.rotation.z = Math.PI/2;
+      w.position.set(p[0], p[1], p[2]);
+      w.castShadow = true;
+      group.add(w);
+      
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(wheelR*0.55, wheelR*0.55, t.width*0.25, 16), rimMat);
+      rim.rotation.z = Math.PI/2;
+      rim.position.copy(w.position);
+      group.add(rim);
+      
+      const brake = new THREE.Mesh(new THREE.CylinderGeometry(wheelR*0.35, wheelR*0.35, t.width*0.26, 8), brakeMat);
+      brake.rotation.z = Math.PI/2;
+      brake.position.copy(w.position);
+      group.add(brake);
+      
+      wheels.push(w);
+    });
+
+    addContactShadow(group, Math.max(t.length,t.width)*0.62, 0.015);
+    group.userData.bodyMeshes = [lower, cabin, roof];
+    group.userData.wheels = wheels;
+    group.userData.type = typeKey;
+    return group;
+  }
+  function repaintCar(group, colorHex) {
+    const c = new THREE.Color(colorHex);
+    if (group.userData.paintMaterials && group.userData.paintMaterials.length) {
+      group.userData.paintMaterials.forEach(m => m.color.copy(c));
+    } else if (group.userData.bodyMeshes) {
+      group.userData.bodyMeshes.forEach(m => m.material.color.copy(c));
+    }
+    group.userData.colorHex = colorHex;
+  }
+
+  // ===== GERÇEK 3D MODEL YÜKLEME SİSTEMİ (.glb) =====
+  // Modeller "models/" klasöründen yüklenir. Aynı klasörde bir HTTP sunucusu üzerinden
+  // açılmalıdır (file:// ile çift tıklayarak açarsan tarayıcı güvenliği .glb dosyalarını
+  // engelleyebilir) — örn: bu klasörde "python3 -m http.server" çalıştırıp
+  // http://localhost:8000/oto-galeri2.html adresinden aç.
+  const MODEL_BASE_PATH = "models/";
+  const gltfLoader = (typeof THREE.GLTFLoader === "function") ? new THREE.GLTFLoader() : null;
+  const carTemplateCache = new Map(); // catalogId -> Promise<THREE.Group>
+
+  function catalogById(id) { return CAR_CATALOG.find(c => c.id === id); }
+
+  // Yüklenen sahneyi bounding-box'a göre ortalar ve kategori hedef uzunluğuna göre ölçekler,
+  // gölge ayarlarını açar ve boya materyallerini isimden bulup listeler.
+  function normalizeCarTemplate(scene, entry) {
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const horizontalLen = Math.max(size.x, size.z) || 1;
+    const t = CAR_TYPES[entry.type] || CAR_TYPES.hatchback;
+    const scaleFactor = t.length / horizontalLen;
+
+    scene.position.set(-center.x, -box.min.y, -center.z);
+
+    const wrapper = new THREE.Group();
+    wrapper.add(scene);
+    wrapper.scale.setScalar(scaleFactor);
+    wrapper.rotation.y = ((entry.rotationY || 0) * Math.PI) / 180;
+
+    const paintMaterials = [];
+    scene.traverse(node => {
+      if (node.isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        mats.forEach(m => {
+          if (m && entry.paintMaterials && entry.paintMaterials.includes(m.name)) paintMaterials.push(m.name);
+        });
+      }
+    });
+
+    wrapper.userData.paintMaterialNames = paintMaterials;
+    return wrapper;
+  }
+
+  function loadCarTemplate(entry) {
+    if (carTemplateCache.has(entry.id)) return carTemplateCache.get(entry.id);
+    const promise = new Promise((resolve, reject) => {
+      if (!gltfLoader) { reject(new Error("GLTFLoader yüklenemedi")); return; }
+      gltfLoader.load(
+        MODEL_BASE_PATH + entry.file,
+        (gltf) => resolve(normalizeCarTemplate(gltf.scene, entry)),
+        undefined,
+        (err) => reject(err)
+      );
+    });
+    carTemplateCache.set(entry.id, promise);
+    return promise;
+  }
+
+  // Bir Object3D'yi klonlar ve mesh materyallerini de klonlar (renk değişimlerinin
+  // aynı modelin diğer kopyalarına sızmaması için — aynı araba envanterde/vitrinde/
+  // müşteride birden fazla kez sahnede olabilir).
+  function cloneCarInstance(template) {
+    const inst = template.clone(true);
+    inst.traverse(node => {
+      if (node.isMesh) {
+        node.material = Array.isArray(node.material) ? node.material.map(m => m.clone()) : node.material.clone();
+      }
+    });
+    return inst;
+  }
+
+  function applyPaint(instRoot, entry, colorHex) {
+    if (!entry.colorable || !entry.paintMaterials.length) return [];
+    const c = new THREE.Color(colorHex);
+    const found = [];
+    instRoot.traverse(node => {
+      if (node.isMesh) {
+        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        mats.forEach(m => {
+          if (m && entry.paintMaterials.includes(m.name)) { m.color.copy(c); found.push(m); }
+        });
+      }
+    });
+    return found;
+  }
+
+  // Basit, yarı saydam yer tutucu — gerçek model yüklenene kadar pedestal boş kalmasın diye.
+  function createPlaceholderMesh(typeKey) {
+    const t = CAR_TYPES[typeKey] || CAR_TYPES.hatchback;
+    const g = new THREE.Group();
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(t.width * 0.9, t.height * 0.6, t.length * 0.9),
+      new THREE.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.35, roughness: 0.9 })
+    );
+    box.position.y = t.height * 0.3;
+    g.add(box);
+    addContactShadow(g, Math.max(t.length, t.width) * 0.62, 0.015);
+    return g;
+  }
+
+  // ANA GİRİŞ NOKTASI: kataloktaki bir aracın 3D grubunu üretir.
+  // catalogId: CAR_CATALOG içindeki "id" alanı. colorHex: sadece colorable modellerde kullanılır.
+  function createCarMesh(catalogId, colorHex) {
+    const entry = catalogById(catalogId);
+    const holder = new THREE.Group();
+    holder.userData.catalogId = catalogId;
+    holder.userData.colorHex = colorHex;
+    holder.userData.bodyMeshes = [];
+    holder.userData.paintMaterials = [];
+
+    if (!entry || !entry.file || !gltfLoader) {
+      // Kataloğa dosya tanımlanmamış veya loader kullanılamıyor: procedural yedek.
+      const fallback = createProceduralCarMesh((entry && entry.type) || "hatchback", colorHex);
+      holder.add(fallback);
+      holder.userData.bodyMeshes = fallback.userData.bodyMeshes;
+      holder.userData.wheels = fallback.userData.wheels;
+      return holder;
+    }
+
+    const placeholder = createPlaceholderMesh(entry.type);
+    holder.add(placeholder);
+
+    loadCarTemplate(entry).then(template => {
+      const inst = cloneCarInstance(template);
+      holder.userData.paintMaterials = applyPaint(inst, entry, holder.userData.colorHex);
+      holder.remove(placeholder);
+      holder.add(inst);
+    }).catch(err => {
+      console.warn("Model yüklenemedi, procedural yedek kullanılıyor:", entry.file, err);
+      const fallback = createProceduralCarMesh(entry.type, holder.userData.colorHex);
+      holder.remove(placeholder);
+      holder.add(fallback);
+      holder.userData.bodyMeshes = fallback.userData.bodyMeshes;
+      holder.userData.wheels = fallback.userData.wheels;
+    });
+
+    return holder;
+  }
+
+  // HUMANOID
+  const SKIN_TONES = [0xd9a679,0xc78c5c,0x8d5a3c,0xf0c8a0,0x6b4530];
+  function createHumanoid(colorHex) {
+    const g = new THREE.Group();
+    const skinTone = pick(SKIN_TONES);
+    const mat = new THREE.MeshStandardMaterial({color:colorHex, roughness:0.55, metalness:0.03});
+    const pantsMat = new THREE.MeshStandardMaterial({color:0x272b31, roughness:0.75});
+    const skinMat = new THREE.MeshStandardMaterial({color:skinTone, roughness:0.65});
+    const shoeMat = new THREE.MeshStandardMaterial({color:0x141414, roughness:0.55});
+    const hairMat = new THREE.MeshStandardMaterial({color:pick([0x1c140f,0x2c1c10,0x4a3222,0x0d0d0d,0x6b4a2c]), roughness:0.8});
+
+    const hips = new THREE.Mesh(new THREE.SphereGeometry(0.185,12,10), pantsMat);
+    hips.scale.set(1,0.85,0.82); hips.position.y = 0.86; hips.castShadow = true; g.add(hips);
+
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.155,0.195,0.56,12), mat);
+    torso.position.y = 1.20; torso.castShadow = true; g.add(torso);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.20,12,10), mat);
+    chest.scale.set(1,0.72,0.62); chest.position.y = 1.46; chest.castShadow = true; g.add(chest);
+
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.065,0.075,0.09,8), skinMat);
+    neck.position.y = 1.565; g.add(neck);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.185,16,14), skinMat);
+    head.position.y = 1.735; head.castShadow = true; g.add(head);
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.192,16,12,0,Math.PI*2,0,Math.PI*0.52), hairMat);
+    hair.position.y = 1.775; g.add(hair);
+
+    const arms = [];
+    [-1,1].forEach(sx => {
+      const shoulder = new THREE.Group();
+      shoulder.position.set(sx*0.235, 1.44, 0);
+      const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.062,0.052,0.34,8), mat);
+      upperArm.position.y = -0.17; upperArm.castShadow = true; shoulder.add(upperArm);
+      const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.043,0.32,8), skinMat);
+      forearm.position.y = -0.5; forearm.castShadow = true; shoulder.add(forearm);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.058,8,8), skinMat);
+      hand.position.y = -0.66; shoulder.add(hand);
+      g.add(shoulder); arms.push(shoulder);
+    });
+
+    const legs = [];
+    [-1,1].forEach(sx => {
+      const hip = new THREE.Group();
+      hip.position.set(sx*0.105, 0.80, 0);
+      const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.088,0.075,0.42,8), pantsMat);
+      thigh.position.y = -0.21; thigh.castShadow = true; hip.add(thigh);
+      const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.058,0.4,8), pantsMat);
+      shin.position.y = -0.62; shin.castShadow = true; hip.add(shin);
+      const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.115,0.09,0.235), shoeMat);
+      shoe.position.set(0,-0.835,0.045); shoe.castShadow = true; hip.add(shoe);
+      g.add(hip); legs.push(hip);
+    });
+
+    addContactShadow(g, 0.5, 0.02);
+    g.userData.arms = arms;
+    g.userData.legs = legs;
+    g.userData.walkPhase = Math.random()*10;
+    g.userData.baseY = 0;
+    return g;
+  }
+  function animateHumanoid(mesh, dt, speed, maxSpeed) {
+    const ud = mesh.userData;
+    if(!ud.arms) return;
+    const intensity = THREE.MathUtils.clamp(Math.abs(speed)/Math.max(maxSpeed,0.001), 0, 1);
+    const moving = intensity > 0.03;
+    ud.walkPhase += dt * (moving ? (6.5 + intensity*6.5) : 1.4);
+    const swing = moving ? Math.sin(ud.walkPhase) * (0.16 + intensity*0.55) : Math.sin(ud.walkPhase)*0.03;
+    ud.legs[0].rotation.x = swing; ud.legs[1].rotation.x = -swing;
+    ud.arms[0].rotation.x = -swing*0.85; ud.arms[1].rotation.x = swing*0.85;
+    const bob = moving ? Math.abs(Math.sin(ud.walkPhase*2))*0.045*intensity : Math.sin(ud.walkPhase*0.6)*0.008;
+    mesh.position.y = (ud.baseY||0) + bob;
+  }
+
+  // PLAYER
+  const player = {
+    mode: "walk",
+    pos: new THREE.Vector3(0,0,10),
+    facingYaw: 0, camYaw: 0, speed: 0,
+    avatarMesh: null,
+    drivingUid: null, drivingMesh: null,
+  };
+  const camState = { pos:new THREE.Vector3(0,8,20), look:new THREE.Vector3(0,1.4,10) };
+
+  // INPUTS
+  const keys = {};
+  const KEY_MAP = {
+    KeyW:"w", KeyA:"a", KeyS:"s", KeyD:"d",
+    ArrowUp:"w", ArrowLeft:"a", ArrowDown:"s", ArrowRight:"d",
+    ShiftLeft:"shift", ShiftRight:"shift",
+    KeyE:"e", KeyF:"f",
+  };
+  function isTypingInField() {
+    const el = document.activeElement;
+    return el && (el.tagName==="INPUT" || el.tagName==="TEXTAREA" || el.tagName==="SELECT");
+  }
+  function clearKeys() { for (const k in keys) keys[k] = false; }
+  window.addEventListener('blur', clearKeys);
+
+  window.addEventListener("keydown", e => {
+    if (e.code === "Enter" && !document.getElementById("intro-screen").style.display.includes("none")) {
+      document.getElementById("btn-start-game").click();
+    }
+    const k = KEY_MAP[e.code];
+    if(!k) return;
+    if(isTypingInField()) return;
+    e.preventDefault();
+    keys[k] = true;
+    if(k==="e") tryInteract();
+    if(k==="f") toggleDrive();
+  });
+  window.addEventListener("keyup", e => {
+    const k = KEY_MAP[e.code];
+    if(!k) return;
+    if(isTypingInField()) return;
+    e.preventDefault();
+    keys[k] = false;
+  });
+
+  // MOBILE CONTROLS
+  function setupMobileControls() {
+    const bind = (id, key) => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      const down = (e) => { e.preventDefault(); keys[key] = true; }
+      const up = (e) => { e.preventDefault(); keys[key] = false; }
+      el.addEventListener('touchstart', down, { passive: false });
+      el.addEventListener('touchend', up, { passive: false });
+      el.addEventListener('touchcancel', up, { passive: false });
+      el.addEventListener('mousedown', down);
+      el.addEventListener('mouseup', up);
+      el.addEventListener('mouseleave', up);
+    };
+    bind('btn-up', 'w'); bind('btn-down', 's'); bind('btn-left', 'a'); bind('btn-right', 'd');
+    const btnE = document.getElementById('btn-interact');
+    btnE.addEventListener('touchstart', (e) => { e.preventDefault(); tryInteract(); }, { passive: false });
+    const btnF = document.getElementById('btn-car');
+    btnF.addEventListener('touchstart', (e) => { e.preventDefault(); toggleDrive(); }, { passive: false });
+  }
+  setupMobileControls();
+
+  function shortAngleDist(a0,a1) { const max = Math.PI*2; const da = (a1-a0) % max; return (2*da) % max - da; }
+  function lerpAngle(a0,a1,t) { return a0 + shortAngleDist(a0,a1)*t; }
+  function stepAngleTowards(a0,a1,maxStep) { const diff = shortAngleDist(a0,a1); if(Math.abs(diff) <= maxStep) return a1; return a0 + Math.sign(diff)*maxStep; }
+  function dampFactor(dt, speed) { return 1 - Math.exp(-speed*dt); }
+
+  // WORLD ENTITIES
+  const shopPedestals = [], cityListings = [], rivalListings = { rivalA:[], rivalB:[] }, npcs = [];
+  let customersOnMission = [];
+
+  function makeShopPedestalPositions(n) {
+    const positions = [];
+    const cols = Math.ceil(Math.sqrt(n));
+    const spacing = 5.0;
+    for(let i=0;i<n;i++){
+      const cx = (i%cols) - (cols-1)/2;
+      const cz = Math.floor(i/cols);
+      positions.push(new THREE.Vector3(cx*spacing, 0, -10 - cz*spacing));
+    }
+    return positions;
+  }
+  function rebuildShopPedestals() {
+    shopPedestals.forEach(p => {
+      scene.remove(p.mesh);
+      if(p.marker) scene.remove(p.marker);
+      if(p.carGroup) scene.remove(p.carGroup);
+    });
+    shopPedestals.length = 0;
+    const positions = makeShopPedestalPositions(state.shopSlots);
+    positions.forEach(pos => {
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.6,0.25,24), new THREE.MeshStandardMaterial({color:0x2c2f34, roughness:0.6}));
+      base.position.copy(pos); base.position.y=0.15;
+      base.receiveShadow=true; base.castShadow=true;
+      scene.add(base);
+      shopPedestals.push({mesh:base, uid:null, carGroup:null, marker:null, pos});
+    });
+  }
+  function refreshShopCars() {
+    shopPedestals.forEach(p => {
+      if(p.carGroup){ scene.remove(p.carGroup); p.carGroup=null; }
+      if(p.marker){ scene.remove(p.marker); p.marker=null; }
+      p.uid=null;
+    });
+    state.inventory.forEach((car,idx) => {
+      if(idx>=shopPedestals.length) return;
+      const p = shopPedestals[idx];
+      const cat = catalogOf(car.catalogId);
+      const g = createCarMesh(cat.id, car.color);
+      g.position.copy(p.pos);
+      g.position.y = 0.25;
+      g.rotation.y = Math.PI;
+      scene.add(g);
+      p.carGroup = g;
+      p.uid = car.uid;
+      const marker = createSignSprite([{text:carDisplayName(car.catalogId), size:30}], {scale:3.4, bg:"rgba(10,12,15,0.8)"});
+      marker.position.set(p.pos.x, 3.2, p.pos.z);
+      scene.add(marker);
+      p.marker = marker;
+    });
+  }
+  function generateListing() {
+    const cat = pick(CAR_CATALOG);
+    const condition = randInt(55,100);
+    const price = conditionAdjustedPrice(cat.id, condition);
+    return {
+      catalogId: cat.id,
+      color: pick(BODY_COLORS),
+      condition,
+      price: Math.round(price * rand(1.02,1.18)),
+      sellerName: pick(["Ahmet","Mehmet","Fatma","Ayşe","Hasan","Emre","Deniz","Burak","Selin","Onur"]),
+    };
+  }
+  function populateCityListings() {
+    cityListings.forEach(l => { scene.remove(l.mesh); scene.remove(l.marker); });
+    cityListings.length = 0;
+    const z = ZONES.city;
+    const count = 6;
+    for(let i=0;i<count;i++){
+      const listing = generateListing();
+      const angle = (i/count)*Math.PI*2;
+      const rad = z.radius*0.55;
+      const pos = new THREE.Vector3(z.x+Math.cos(angle)*rad, 0, z.z+Math.sin(angle)*rad);
+      const cat = catalogOf(listing.catalogId);
+      const g = createCarMesh(cat.id, listing.color);
+      g.position.copy(pos); g.position.y=0.02;
+      g.rotation.y = angle+Math.PI/2;
+      scene.add(g);
+      listing.mesh = g; listing.pos = pos;
+      const marker = createSignSprite([
+        {text:carDisplayName(listing.catalogId), size:26},
+        {text:fmtMoney(listing.price), size:30, color:"#e9c568"},
+        {text:"SATILIK — "+listing.sellerName, size:18, color:"#8b8f97"}
+      ], {scale:3.2, h:200});
+      marker.position.set(pos.x, 3.4, pos.z);
+      scene.add(marker);
+      listing.marker = marker;
+      cityListings.push(listing);
+    }
+  }
+  function populateRivalListings(key, zoneKey, count) {
+    rivalListings[key].forEach(l => { scene.remove(l.mesh); scene.remove(l.marker); });
+    rivalListings[key] = [];
+    const z = ZONES[zoneKey];
+    for(let i=0;i<count;i++){
+      const listing = generateListing();
+      const cx = (i - (count-1)/2) * 4.5;
+      const pos = new THREE.Vector3(z.x+cx, 0, z.z + (zoneKey==="rivalB" ? 15 : 6));
+      const cat = catalogOf(listing.catalogId);
+      const g = createCarMesh(cat.id, listing.color);
+      g.position.copy(pos); g.position.y=0.02;
+      g.rotation.y = zoneKey==="rivalB" ? Math.PI : 0;
+      scene.add(g);
+      listing.mesh=g; listing.pos=pos;
+      listing.sellerName = zoneKey==="rivalA" ? "Kardeşler Otomotiv" : "Merkez Galeri";
+      const marker = createSignSprite([
+        {text:carDisplayName(listing.catalogId), size:26},
+        {text:fmtMoney(listing.price), size:30, color:"#e9c568"},
+      ], {scale:3.2, h:170});
+      marker.position.set(pos.x,3.4,pos.z);
+      scene.add(marker);
+      listing.marker = marker;
+      rivalListings[key].push(listing);
+    }
+  }
+  function spawnNpc(zoneKey) {
+    const z = ZONES[zoneKey];
+    const g = createHumanoid(pick(AVATAR_COLORS));
+    const startAngle = Math.random()*Math.PI*2;
+    const startRad = Math.random()*z.radius*0.6;
+    g.position.set(z.x+Math.cos(startAngle)*startRad, 0, z.z+Math.sin(startAngle)*startRad);
+    scene.add(g);
+    npcs.push({mesh:g, zoneKey, target:null, speed:rand(1.0,1.8)});
+  }
+  function updateNpcs(dt) {
+    npcs.forEach(n => {
+      const z = ZONES[n.zoneKey];
+      if(!n.target || n.mesh.position.distanceTo(n.target) < 0.6){
+        const angle = Math.random()*Math.PI*2;
+        const rad = Math.random()*z.radius*0.6;
+        n.target = new THREE.Vector3(z.x+Math.cos(angle)*rad, 0, z.z+Math.sin(angle)*rad);
+      }
+      const dir = new THREE.Vector3().subVectors(n.target, n.mesh.position);
+      dir.y=0;
+      let moveSpeed = 0;
+      if(dir.length()>0.05){
+        dir.normalize();
+        n.mesh.position.addScaledVector(dir, n.speed*dt);
+        n.mesh.rotation.y = Math.atan2(dir.x,dir.z);
+        moveSpeed = n.speed;
+      }
+      animateHumanoid(n.mesh, dt, moveSpeed, 1.8);
+    });
+  }
+  function spawnCustomer() {
+    if(customersOnMission.length >= 2) return;
+    if(!state.inventory.length) return;
+    const cat = pick(CAR_CATALOG);
+    const budget = Math.round(rand(cat.min*0.9, cat.max*1.3));
+    const angle = Math.random()*Math.PI*2;
+    const startPos = new THREE.Vector3(Math.cos(angle)*WORLD_BOUND*0.9, 0, Math.sin(angle)*WORLD_BOUND*0.9);
+    const g = createHumanoid(pick(AVATAR_COLORS));
+    g.position.copy(startPos);
+    scene.add(g);
+    const marker = createSignSprite([{text:"Müşteri arıyor:",size:20,color:"#8b8f97"},{text:cat.type.toUpperCase(),size:26}], {scale:2.6,h:150});
+    marker.position.set(startPos.x, 2.6, startPos.z);
+    scene.add(marker);
+    customersOnMission.push({mesh:g, marker, wantType:cat.type, wantCatId:cat.id, budget, arrived:false, name:pick(["Ali","Zeynep","Kemal","Elif","Mert","Gül","Tarkan","Nihan"])});
+  }
+  function updateCustomers(dt) {
+    customersOnMission.forEach(c => {
+      if(c.arrived) return;
+      if(!c.target) c.target = new THREE.Vector3(rand(-3,3),0,rand(0,3));
+      const dir = new THREE.Vector3().subVectors(c.target, c.mesh.position);
+      dir.y=0;
+      if(dir.length()>0.8){
+        dir.normalize();
+        c.mesh.position.addScaledVector(dir, 3.2*dt);
+        c.mesh.rotation.y = Math.atan2(dir.x,dir.z);
+        c.marker.position.set(c.mesh.position.x, 2.6, c.mesh.position.z);
+        animateHumanoid(c.mesh, dt, 3.2, 3.2);
+      } else {
+        c.arrived = true;
+        animateHumanoid(c.mesh, dt, 0, 3.2);
+      }
+    });
+  }
+
+  // INTERACTION
+  let currentInteraction = null;
+  const promptEl = document.getElementById("interact-prompt"), promptText = document.getElementById("interact-text");
+  function tryInteract() { if(currentInteraction) currentInteraction(); }
+  function inZone(pos, key) { const z = ZONES[key]; return Math.hypot(pos.x-z.x, pos.z-z.z) < z.radius; }
+  function currentZoneLabel() {
+    for(const [key,z] of Object.entries(ZONES)){ if(inZone(player.pos,key)) return z.label; }
+    return "AÇIK ARAZİ";
+  }
+  function updateInteractionCheck() {
+    const p = player.pos;
+    currentInteraction = null;
+    let promptMsg = null;
+    if(inZone(p,"city")){
+      for(const listing of cityListings){
+        if(p.distanceTo(listing.pos) < 3.2){
+          promptMsg = carDisplayName(listing.catalogId)+" için pazarlık et";
+          currentInteraction = ()=> openNegotiateBuy(listing, "city");
+          break;
+        }
+      }
+    }
+    if(!currentInteraction && inZone(p,"rivalA")){
+      for(const listing of rivalListings.rivalA){
+        if(p.distanceTo(listing.pos) < 3.2){
+          promptMsg = carDisplayName(listing.catalogId)+" için pazarlık et (Kardeşler Otomotiv)";
+          currentInteraction = ()=> openNegotiateBuy(listing,"rivalA");
+          break;
+        }
+      }
+    }
+    if(!currentInteraction && inZone(p,"rivalB")){
+      for(const listing of rivalListings.rivalB){
+        if(p.distanceTo(listing.pos) < 3.2){
+          promptMsg = carDisplayName(listing.catalogId)+" için pazarlık et (Merkez Galeri)";
+          currentInteraction = ()=> openNegotiateBuy(listing,"rivalB");
+          break;
+        }
+      }
+    }
+    if(!currentInteraction && inZone(p,"auction")){
+      if(p.distanceTo(new THREE.Vector3(ZONES.auction.x,0,ZONES.auction.z-6)) < 9){
+        promptMsg = "Açık artırmaya katıl";
+        currentInteraction = ()=> openAuction();
+      }
+    }
+    if(!currentInteraction && inZone(p,"shop") && player.mode === "walk"){
+      const arrivedCustomer = customersOnMission.find(c=>c.arrived && p.distanceTo(c.mesh.position) < 3.2);
+      if(arrivedCustomer){
+        promptMsg = arrivedCustomer.name+" ile konuş (müşteri)";
+        currentInteraction = ()=> openCustomer(arrivedCustomer);
+      } else {
+        promptMsg = "Galeri yönetimini aç";
+        currentInteraction = ()=> openShopPanel();
+      }
+    }
+    if(!currentInteraction && player.mode==="walk"){
+      const nearCar = shopPedestals.find(sp => sp.uid && p.distanceTo(sp.pos) < 3);
+      if(nearCar){ promptMsg = "F ile arabaya bin"; }
+    }
+    if(promptMsg){ promptText.textContent = promptMsg; promptEl.style.display = "block"; }
+    else promptEl.style.display = "none";
+  }
+  function toggleDrive() {
+    if(player.mode==="walk"){
+      if(!inZone(player.pos,"shop")) return;
+      const sp = shopPedestals.find(s => s.uid && player.pos.distanceTo(s.pos) < 3);
+      if(!sp) return;
+      player.mode="drive";
+      player.drivingUid = sp.uid;
+      player.drivingMesh = sp.carGroup;
+      player.avatarMesh.visible=false;
+      sp.marker.visible = false;
+    } else {
+      if(!inZone(player.pos,"shop")) { pushToast("Arabayı park etmek için dükkana dön.","danger"); return; }
+      player.mode="walk";
+      player.avatarMesh.visible=true;
+      player.avatarMesh.position.copy(player.drivingMesh.position);
+      player.avatarMesh.position.y=0;
+      player.pos.copy(player.avatarMesh.position);
+      player.facingYaw = player.drivingMesh.rotation.y;
+      player.avatarMesh.rotation.y = player.facingYaw;
+      const sp = shopPedestals.find(s => s.uid === player.drivingUid);
+      if(sp) sp.marker.visible = true;
+      player.drivingUid=null;
+      player.drivingMesh=null;
+      player.speed=0;
+    }
+  }
+  function negotiationStep(askingPrice, offer, round) {
+    const ratio = offer/askingPrice;
+    if(ratio >= 0.98) return {accepted:true, message:"Anlaştık, elini uzattı."};
+    if(ratio >= 0.90){
+      const chance = 0.35 + (ratio-0.90)*6;
+      if(Math.random() < chance) return {accepted:true, message:"Düşünüp kabul etti."};
+      const counter = Math.round(askingPrice*rand(0.94,0.98));
+      return {accepted:false, counter, message:"\""+fmtMoney(counter)+" olursa anlaşırız\" dedi."};
+    }
+    if(ratio >= 0.75){
+      const counter = Math.round((askingPrice+offer)/2 * rand(0.98,1.03));
+      return {accepted:false, counter, message:"\""+fmtMoney(counter)+"\" diye karşılık verdi."};
+    }
+    if(round>=3) return {accepted:false, counter:null, walk:true, message:"\"Bu fiyata olmaz\" deyip vazgeçti."};
+    return {accepted:false, counter:Math.round(askingPrice*0.92), walk:false, message:"Gülüp başını salladı, çok düşük buldu."};
+  }
+
+  // MODALS
+  function openModal(id) { document.getElementById(id).classList.add("open"); }
+  function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+  document.querySelectorAll("[data-close]").forEach(btn => {
+    btn.addEventListener("click", () => closeModal(btn.dataset.close));
+  });
+  function pushToast(msg, kind) {
+    const wrap = document.getElementById("toast-wrap");
+    const t = document.createElement("div");
+    t.className = "toast"+(kind?" "+kind:"");
+    t.textContent = msg;
+    wrap.appendChild(t);
+    setTimeout(() => { t.style.opacity="0"; t.style.transition="opacity .3s"; setTimeout(()=>t.remove(),300); }, 2600);
+  }
+  function openNegotiateBuy(listing, source) {
+    document.getElementById("neg-title").textContent = carDisplayName(listing.catalogId)+" — Satın Al";
+    const cat = catalogOf(listing.catalogId);
+    let round = 0;
+    let currentAsk = listing.price;
+    const body = document.getElementById("neg-body");
+    function render() {
+      body.innerHTML = `
+        <div class="car-card">
+          <div class="car-card-top">
+            <div>
+              <div class="car-name">${carDisplayName(listing.catalogId)}</div>
+              <div class="car-meta">${cat.type.toUpperCase()} · Durum: %${listing.condition} · Satıcı: ${listing.sellerName}</div>
+            </div>
+            <div class="car-price">${fmtMoney(currentAsk)}</div>
+          </div>
+          <div class="tag">Kasanız: ${fmtMoney(state.money)}</div>
+        </div>
+        <div class="offer-row">
+          <input type="number" id="offer-input" placeholder="Teklifiniz ($)" value="${Math.round(currentAsk*0.9)}">
+          <button class="btn" id="btn-offer">Teklif Ver</button>
+        </div>
+        <div class="offer-row">
+          <button class="btn secondary full" id="btn-accept-asking">Direkt Fiyata Al (${fmtMoney(currentAsk)})</button>
+        </div>
+        <div class="neg-log" id="neg-log"></div>
+      `;
+      document.getElementById("btn-offer").onclick = () => {
+        const offer = Number(document.getElementById("offer-input").value);
+        if(!offer || offer<=0) return;
+        if(offer > state.money){ pushToast("Yeterli paranız yok.","danger"); return; }
+        round++;
+        logNeg("me","Teklifim: "+fmtMoney(offer));
+        const result = negotiationStep(currentAsk, offer, round);
+        if(result.accepted){ finalizeBuy(listing, source, offer); return; }
+        logNeg("them", result.message);
+        if(result.walk){ setTimeout(()=>closeModal("modal-negotiate"), 900); return; }
+        if(result.counter){ currentAsk = result.counter; render(); }
+      };
+      document.getElementById("btn-accept-asking").onclick = () => {
+        if(currentAsk > state.money){ pushToast("Yeterli paranız yok.","danger"); return; }
+        finalizeBuy(listing, source, currentAsk);
+      };
+    }
+    function logNeg(who,msg) {
+      const log = document.getElementById("neg-log");
+      if(!log) return;
+      const d = document.createElement("div");
+      d.className = who;
+      d.textContent = (who==="me"?"Siz: ":"Satıcı: ")+msg;
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+    }
+    render();
+    openModal("modal-negotiate");
+  }
+  function finalizeBuy(listing, source, price) {
+    if(state.inventory.length >= state.shopSlots){
+      pushToast("Galeride yer yok! Önce genişletin veya araba sat.","danger");
+      closeModal("modal-negotiate");
+      return;
+    }
+    state.money -= price;
+    state.stats.bought++;
+    state.inventory.push({uid:nextUid(), catalogId:listing.catalogId, color:listing.color, condition:listing.condition, boughtPrice:price});
+    scene.remove(listing.mesh); scene.remove(listing.marker);
+    if(source==="city"){ cityListings.splice(cityListings.indexOf(listing),1); setTimeout(()=>populateCityListings(), 8000); }
+    if(source==="rivalA"){ rivalListings.rivalA.splice(rivalListings.rivalA.indexOf(listing),1); setTimeout(()=>populateRivalListings("rivalA","rivalA",4), 8000); }
+    if(source==="rivalB"){ rivalListings.rivalB.splice(rivalListings.rivalB.indexOf(listing),1); setTimeout(()=>populateRivalListings("rivalB","rivalB",4), 8000); }
+    refreshShopCars();
+    updateHud();
+    saveGame();
+    pushToast(carDisplayName(listing.catalogId)+" satın alındı: "+fmtMoney(price), "success");
+    closeModal("modal-negotiate");
+  }
+  function openShopPanel() { renderShopPanel(); openModal("modal-shop"); }
+  function renderShopPanel() {
+    const body = document.getElementById("shop-body");
+    let html = `<div class="row"><div>Galeri Seviyesi</div><div class="mono">${state.shopLevel} (${state.shopSlots} araç kapasitesi)</div></div>`;
+    const upgradeCost = state.shopLevel*60000;
+    html += `<div class="row"><div>Genişletme (+2 kapasite)</div><button class="btn secondary" id="btn-upgrade">${fmtMoney(upgradeCost)}</button></div>`;
+    html += `<h4 style="margin:18px 0 8px;">Envanterim (${state.inventory.length}/${state.shopSlots})</h4>`;
+    if(state.inventory.length===0){
+      html += `<div class="empty-note">Hiç aracınız yok. Şehir merkezine veya rakip galerilere gidip araba satın alın.</div>`;
+    } else {
+      state.inventory.forEach(car => {
+        const cat = catalogOf(car.catalogId);
+        html += `<div class="car-card">
+          <div class="car-card-top">
+            <div>
+              <div class="car-name">${carDisplayName(car.catalogId)}</div>
+              <div class="car-meta">${cat.type.toUpperCase()} · Durum: %${car.condition} · Alış: ${fmtMoney(car.boughtPrice)}</div>
+            </div>
+          </div>
+          <div class="color-grid" data-uid="${car.uid}">
+            ${BODY_COLORS.map(c=>`<div class="color-dot ${c===car.color?'active':''}" style="background:${c}" data-color="${c}"></div>`).join("")}
+          </div>
+        </div>`;
+      });
+    }
+    body.innerHTML = html;
+    document.getElementById("btn-upgrade").onclick = () => {
+      if(state.money < upgradeCost){ pushToast("Yeterli paranız yok.","danger"); return; }
+      state.money -= upgradeCost;
+      state.shopLevel++;
+      state.shopSlots += 2;
+      rebuildShopPedestals();
+      refreshShopCars();
+      updateHud();
+      saveGame();
+      pushToast("Galeri genişletildi! Yeni kapasite: "+state.shopSlots, "success");
+      renderShopPanel();
+    };
+    body.querySelectorAll(".color-grid").forEach(grid => {
+      grid.querySelectorAll(".color-dot").forEach(dot => {
+        dot.addEventListener("click", () => {
+          const uid = grid.dataset.uid;
+          const color = dot.dataset.color;
+          const car = state.inventory.find(c => c.uid===uid);
+          car.color = color;
+          refreshShopCars();
+          saveGame();
+          renderShopPanel();
+          pushToast("Araç boyandı.", "success");
+        });
+      });
+    });
+  }
+  function openCustomer(customer) {
+    const body = document.getElementById("customer-body");
+    const matchingCars = state.inventory.filter(c => catalogOf(c.catalogId).type===customer.wantType);
+    let round = 0;
+    function render() {
+      let html = `<div class="car-card"><div class="car-name">${customer.name}</div><div class="car-meta">Aradığı tip: ${customer.wantType.toUpperCase()} · Bütçesi (tahmini): ${fmtMoney(customer.budget)}</div></div>`;
+      if(matchingCars.length===0){
+        html += `<div class="empty-note">Envanterinizde bu tipte araç yok.</div>`;
+        body.innerHTML = html;
+        return;
+      }
+      html += `<label style="font-size:12px;color:var(--muted);">Satılacak Araç</label>
+        <select id="sel-car">${matchingCars.map(c=>`<option value="${c.uid}">${carDisplayName(c.catalogId)} (%${c.condition}, alış ${fmtMoney(c.boughtPrice)})</option>`).join("")}</select>
+        <div class="offer-row">
+          <input type="number" id="ask-price" placeholder="Satış fiyatınız">
+          <button class="btn" id="btn-ask">Fiyat Söyle</button>
+        </div>
+        <div class="neg-log" id="cust-log"></div>`;
+      body.innerHTML = html;
+      const sel = document.getElementById("sel-car");
+      const carObj = () => state.inventory.find(c => c.uid===sel.value);
+      document.getElementById("ask-price").value = Math.round(catalogOf(carObj().catalogId).max*0.9);
+      document.getElementById("btn-ask").onclick = () => {
+        const askPrice = Number(document.getElementById("ask-price").value);
+        if(!askPrice) return;
+        round++;
+        const selectedUid = sel.value;
+        logCust("me","Fiyatım: "+fmtMoney(askPrice));
+        const ratio = customer.budget/askPrice;
+        if(ratio >= 0.95){ finalizeSell(selectedUid, askPrice, customer); return; }
+        else if(ratio >= 0.8){
+          const chance = 0.3+(ratio-0.8)*3;
+          if(Math.random()<chance){ finalizeSell(selectedUid, askPrice, customer); return; }
+          const counter = Math.round(askPrice*rand(0.85,0.93));
+          logCust("them","\""+fmtMoney(counter)+" olursa alırım\" dedi.");
+          document.getElementById("ask-price").value = counter;
+        } else if(round>=3){
+          logCust("them","\"Bütçem buna yetmiyor\" deyip gitti.");
+          setTimeout(()=>{ closeModal("modal-customer"); removeCustomer(customer); }, 1000);
+        } else {
+          logCust("them","\"Çok yüksek, biraz daha inseniz?\" dedi.");
+        }
+      };
+    }
+    function logCust(who,msg) {
+      const log = document.getElementById("cust-log");
+      if(!log) return;
+      const d = document.createElement("div");
+      d.className = who;
+      d.textContent = (who==="me"?"Siz: ":customer.name+": ")+msg;
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+    }
+    render();
+    openModal("modal-customer");
+  }
+  function finalizeSell(uid, price, customer) {
+    const idx = state.inventory.findIndex(c => c.uid===uid);
+    if(idx<0) return;
+    state.inventory.splice(idx,1);
+    state.money += price;
+    state.stats.sold++;
+    refreshShopCars();
+    updateHud();
+    saveGame();
+    pushToast(customer.name+" aracı "+fmtMoney(price)+"'a satın aldı!", "success");
+    closeModal("modal-customer");
+    removeCustomer(customer);
+  }
+  function removeCustomer(customer) {
+    scene.remove(customer.mesh); scene.remove(customer.marker);
+    customersOnMission = customersOnMission.filter(c => c!==customer);
+  }
+  let auctionState = null;
+  function openAuction() {
+    if(auctionState && auctionState.active){ renderAuction(); openModal("modal-auction"); return; }
+    const cat = pick(CAR_CATALOG.filter(c => c.max>30000));
+    const condition = randInt(70,100);
+    const startBid = Math.round(conditionAdjustedPrice(cat.id,condition)*0.6);
+    auctionState = {
+      catalogId: cat.id, color: pick(BODY_COLORS), condition,
+      currentBid: startBid, leader: "Bilinmeyen Alıcı", timeLeft: 25, active:true,
+      playerLeading:false
+    };
+    renderAuction();
+    openModal("modal-auction");
+    runAuctionTimer();
+  }
+  function runAuctionTimer() {
+    if(auctionState._interval) clearInterval(auctionState._interval);
+    auctionState._interval = setInterval(() => {
+      if(!auctionState.active){ clearInterval(auctionState._interval); return; }
+      auctionState.timeLeft -= 1;
+      if(Math.random()<0.5){
+        const raise = Math.round(auctionState.currentBid*rand(0.03,0.09)/100)*100 + randInt(200,1500);
+        auctionState.currentBid += raise;
+        auctionState.leader = pick(["Rakip Koleksiyoner","Bilinmeyen Alıcı","Galeri Sahibi","Yatırımcı"]);
+        auctionState.playerLeading = false;
+        auctionState.timeLeft = Math.max(auctionState.timeLeft, 8);
+      }
+      if(auctionState.timeLeft<=0){
+        auctionState.active=false;
+        clearInterval(auctionState._interval);
+        if(auctionState.playerLeading){
+          pushToast("Müzayedeyi kazandınız: "+carDisplayName(auctionState.catalogId), "success");
+          if(state.inventory.length < state.shopSlots){
+            state.money -= auctionState.currentBid;
+            state.inventory.push({uid:nextUid(), catalogId:auctionState.catalogId, color:auctionState.color, condition:auctionState.condition, boughtPrice:auctionState.currentBid});
+            refreshShopCars(); updateHud(); saveGame();
+          } else {
+            pushToast("Galeride yer olmadığı için araç elden çıktı!","danger");
+          }
+        }
+      }
+      if(document.getElementById("modal-auction").classList.contains("open")) renderAuction();
+    }, 1000);
+  }
+  function renderAuction() {
+    const body = document.getElementById("auction-body");
+    if(!auctionState) return;
+    const cat = catalogOf(auctionState.catalogId);
+    body.innerHTML = `
+      <div class="car-card">
+        <div class="car-card-top">
+          <div>
+            <div class="car-name">${carDisplayName(auctionState.catalogId)}</div>
+            <div class="car-meta">${cat.type.toUpperCase()} · Durum: %${auctionState.condition}</div>
+          </div>
+          <div class="car-price">${fmtMoney(auctionState.currentBid)}</div>
+        </div>
+        <div class="tag">Şu anki lider: ${auctionState.playerLeading? "SİZ" : auctionState.leader}</div>
+        <div class="tag">Kalan süre: ${Math.max(auctionState.timeLeft,0)}sn</div>
+      </div>
+      ${auctionState.active ? `<button class="btn full" id="btn-bid">Teklif Ver (+${fmtMoney(Math.round(auctionState.currentBid*0.05)+300)})</button>`
+        : `<div class="empty-note">${auctionState.playerLeading? "Müzayedeyi kazandınız!" : "Müzayede sona erdi, kaybettiniz."}</div>
+           <button class="btn secondary full" id="btn-new-auction">Yeni Müzayede Bekle</button>`}
+    `;
+    if(auctionState.active){
+      document.getElementById("btn-bid").onclick = () => {
+        if(state.inventory.length >= state.shopSlots){ pushToast("Galeride yer yok! Araç alamazsınız.","danger"); return; }
+        const raise = Math.round(auctionState.currentBid*0.05)+300;
+        const newBid = auctionState.currentBid+raise;
+        if(newBid > state.money){ pushToast("Yeterli paranız yok.","danger"); return; }
+        auctionState.currentBid = newBid;
+        auctionState.leader = "Siz";
+        auctionState.playerLeading = true;
+        auctionState.timeLeft = Math.max(auctionState.timeLeft, 10);
+        renderAuction();
+      };
+    } else {
+      const btn = document.getElementById("btn-new-auction");
+      if(btn) btn.onclick = () => { auctionState=null; closeModal("modal-auction"); };
+    }
+  }
+
+  // HUD
+  function updateHud() {
+    document.getElementById("hud-shop-name").textContent = state.shopName;
+    document.getElementById("hud-shop-level").textContent = state.shopLevel;
+    document.getElementById("money-pill").textContent = fmtMoney(state.money);
+  }
+  document.getElementById("btn-shop-panel").addEventListener("click", openShopPanel);
+
+  // INTRO
+  let selectedAvatarColor = AVATAR_COLORS[0];
+  const swatchWrap = document.getElementById("avatar-swatches");
+  AVATAR_COLORS.forEach((c,i) => {
+    const el = document.createElement("div");
+    el.className = "swatch"+(i===0?" active":"");
+    el.style.background = c;
+    el.addEventListener("click", () => {
+      swatchWrap.querySelectorAll(".swatch").forEach(s => s.classList.remove("active"));
+      el.classList.add("active");
+      selectedAvatarColor = c;
+    });
+    swatchWrap.appendChild(el);
+  });
+
+  (function checkSave() {
+    const saved = loadGame();
+    if(saved){
+      document.getElementById("continue-row").style.display = "block";
+      document.getElementById("btn-continue-game").addEventListener("click", () => {
+        state = saved;
+        document.getElementById("intro-screen").style.display="none";
+        initWorldFromState();
+      });
+    }
+  })();
+
+  document.getElementById("btn-start-game").addEventListener("click", () => {
+    const pname = document.getElementById("in-player-name").value.trim() || "Girişimci";
+    const sname = document.getElementById("in-shop-name").value.trim() || "Otomotiv";
+    state = defaultState(pname, sname, selectedAvatarColor);
+    document.getElementById("intro-screen").style.display="none";
+    initWorldFromState();
+    saveGame();
+  });
+
+  function initWorldFromState() {
+    if(shopSignSprite) scene.remove(shopSignSprite);
+    shopSignSprite = createSignSprite([
+      {text:state.shopName, size:44, color:"#e9c568"},
+      {text:"OTOMOTİV GALERİSİ", size:18, color:"#8b8f97"}
+    ], {scale:7, h:200, border:"#c9a13b"});
+    shopSignSprite.position.set(0, 9, -14);
+    scene.add(shopSignSprite);
+
+    rebuildShopPedestals();
+    refreshShopCars();
+    populateCityListings();
+    populateRivalListings("rivalA","rivalA",4);
+    populateRivalListings("rivalB","rivalB",4);
+
+    ["city","city","city","rivalA","rivalB","shop"].forEach(z => spawnNpc(z));
+
+    player.avatarMesh = createHumanoid(state.avatarColor);
+    player.avatarMesh.position.copy(player.pos);
+    scene.add(player.avatarMesh);
+    camState.pos.set(player.pos.x, 8, player.pos.z+16);
+    camState.look.set(player.pos.x,1.4,player.pos.z);
+    camera.position.copy(camState.pos);
+
+    updateHud();
+    animate();
+    setInterval(() => { if(Math.random()<0.7) spawnCustomer(); }, 22000);
+    setTimeout(spawnCustomer, 6000);
+  }
+
+  // MAIN LOOP
+  const clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.05);
+    if(player.mode==="walk") updateWalk(dt);
+    else updateDrive(dt);
+    updateNpcs(dt);
+    updateCustomers(dt);
+    updateInteractionCheck();
+    document.getElementById("zone-indicator").textContent = currentZoneLabel();
+    renderer.render(scene, camera);
+  }
+  
+  // YÜRÜME KONTROLÜ (Kamera Açısına Göre Tam Stabil Yönlendirme)
+  function updateWalk(dt) {
+    let mx=0, mz=0;
+    if(keys["w"]) mz += 1;  // İleri
+    if(keys["s"]) mz -= 1;  // Geri
+    if(keys["a"]) mx -= 1;  // Sol
+    if(keys["d"]) mx += 1;  // Sağ
+    
+    const hasInput = (mx!==0 || mz!==0);
+    const running = keys["shift"];
+    const maxSpeed = running ? 11.5 : 7;
+    const accel = 26, friction = 20, turnRate = 11;
+
+    if(hasInput){
+      const camForward = new THREE.Vector3(Math.sin(player.camYaw), 0, Math.cos(player.camYaw));
+      // Sağ vektörü Three.js'nin çapraz çarpım (cross) metoduyla hesaplanır. 
+      // Bu sayede eksen karmaşası yaşanmaz ve her zaman kamera göresine göre gerçek "sağ" yönü bulunur.
+      const camRight = new THREE.Vector3().crossVectors(camForward, new THREE.Vector3(0,1,0)).normalize();
+      
+      const moveDir = new THREE.Vector3();
+      moveDir.addScaledVector(camForward, mz);
+      moveDir.addScaledVector(camRight, mx);
+      moveDir.normalize();
+      
+      const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+      player.facingYaw = stepAngleTowards(player.facingYaw, targetYaw, turnRate*dt);
+      player.speed = Math.min(player.speed + accel*dt, maxSpeed);
+    } else {
+      player.speed = Math.max(player.speed - friction*dt, 0);
+    }
+
+    if(player.speed > 0.01){
+      const moveDir = new THREE.Vector3(Math.sin(player.facingYaw), 0, Math.cos(player.facingYaw));
+      player.pos.addScaledVector(moveDir, player.speed*dt);
+      player.pos.x = THREE.MathUtils.clamp(player.pos.x, -WORLD_BOUND, WORLD_BOUND);
+      player.pos.z = THREE.MathUtils.clamp(player.pos.z, -WORLD_BOUND, WORLD_BOUND);
+    }
+    player.avatarMesh.position.x = player.pos.x;
+    player.avatarMesh.position.z = player.pos.z;
+    player.avatarMesh.rotation.y = player.facingYaw;
+    animateHumanoid(player.avatarMesh, dt, player.speed, maxSpeed);
+
+    const insideShop = inZone(player.pos, "shop");
+    const camDist = insideShop ? 5.5 : 8.5;
+    const camHeight = insideShop ? 3.5 : 6.5;
+    player.camYaw = lerpAngle(player.camYaw, player.facingYaw, dampFactor(dt, 4));
+    const camOffset = new THREE.Vector3(Math.sin(player.camYaw)*-camDist, camHeight, Math.cos(player.camYaw)*-camDist);
+    const desiredCamPos = player.pos.clone().add(camOffset);
+    const desiredLook = new THREE.Vector3(player.pos.x, 1.5, player.pos.z);
+    camState.pos.lerp(desiredCamPos, dampFactor(dt, 6));
+    camState.look.lerp(desiredLook, dampFactor(dt, 9));
+    camera.position.copy(camState.pos);
+    camera.lookAt(camState.look);
+  }
+  
+  // ARABA KULLANMA KONTROLÜ
+  function updateDrive(dt) {
+    const mesh = player.drivingMesh;
+    if(!mesh) return;
+    let accelIn = 0, steerIn = 0;
+    if(keys["w"]) accelIn = 1;
+    if(keys["s"]) accelIn = -1;
+    if(keys["a"]) steerIn -= 1;  // Sol
+    if(keys["d"]) steerIn += 1;  // Sağ
+
+    const maxSpeed = 15, accelRate = 12, brakeRate = 18;
+    if(accelIn>0) player.speed = Math.min(player.speed + accelRate*dt, maxSpeed);
+    else if(accelIn<0) player.speed = Math.max(player.speed - brakeRate*dt, -maxSpeed*0.55);
+    else {
+      const decel = 9*dt;
+      if(player.speed>0) player.speed = Math.max(player.speed-decel,0);
+      else if(player.speed<0) player.speed = Math.min(player.speed+decel,0);
+    }
+
+    if(Math.abs(player.speed) > 0.15){
+      const steerFactor = THREE.MathUtils.clamp(Math.abs(player.speed)/6,0.35,1);
+      // Direksiyon Düzeltmesi: Sağa basınca araba sağa dönsün diye eksi (-) ile çarpıyoruz.
+      mesh.rotation.y -= steerIn*dt*2.0*steerFactor*Math.sign(player.speed);
+    }
+    const forward = new THREE.Vector3(Math.sin(mesh.rotation.y), 0, Math.cos(mesh.rotation.y));
+    mesh.position.addScaledVector(forward, player.speed*dt);
+    mesh.position.x = THREE.MathUtils.clamp(mesh.position.x, -WORLD_BOUND, WORLD_BOUND);
+    mesh.position.z = THREE.MathUtils.clamp(mesh.position.z, -WORLD_BOUND, WORLD_BOUND);
+    player.pos.copy(mesh.position);
+    player.camYaw = lerpAngle(player.camYaw, mesh.rotation.y, dampFactor(dt, 5));
+    const behind = new THREE.Vector3(-Math.sin(player.camYaw)*8.5, 4, -Math.cos(player.camYaw)*8.5);
+    const desiredCamPos = mesh.position.clone().add(behind);
+    const desiredLook = new THREE.Vector3(mesh.position.x, 1.2, mesh.position.z);
+    camState.pos.lerp(desiredCamPos, dampFactor(dt, 7));
+    camState.look.lerp(desiredLook, dampFactor(dt, 10));
+    camera.position.copy(camState.pos);
+    camera.lookAt(camState.look);
+  }
+
+})();
+</script>
+</body>
+</html>
